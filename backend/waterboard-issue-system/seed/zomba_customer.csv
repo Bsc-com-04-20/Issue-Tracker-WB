@@ -1,0 +1,6 @@
+customer_id,full_name,phone_number,district,area,address_description,meter_number,account_status
+ZB-NACHUM-01,John Banda,+265991000001,Zomba,NACHUMA,Mock address in NACHUMA,37224210001,active
+ZB-NACHUM-02,Grace Phiri,+265991000002,Zomba,NACHUMA,Mock address in NACHUMA,37224210002,active
+ZB-NACHUM-03,Peter Mbewe,+265991000003,Zomba,NACHUMA,Mock address in NACHUMA,37224210003,active
+ZB-NACHUM-04,Mary Chirwa,+265991000004,Zomba,NACHUMA,Mock address in NACHUMA,37224210004,active
+ZB-NACHUM-05,James Moyo,+265991000005,Zomba,NACHUMA,Mock address in NACHUMA,37224210005,active

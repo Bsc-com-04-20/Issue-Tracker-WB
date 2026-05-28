@@ -2,8 +2,8 @@ const { spawn } = require('node:child_process');
 const path = require('node:path');
 
 const rootDir = process.cwd();
-const appDir = path.join(rootDir, 'issue-tracking-system');
-const frontendDir = path.join(appDir, 'frontend');
+const appDir = path.join(rootDir, 'backend');
+const frontendDir = path.join(rootDir, 'frontend');
 const isWindows = process.platform === 'win32';
 
 function run(command, args, cwd, label) {
