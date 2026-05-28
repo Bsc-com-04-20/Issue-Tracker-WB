@@ -388,25 +388,14 @@ export function IssuesPage() {
               : deptSpecialist
                 ? 'Tickets routed to your unit from customer categories that map to your department.'
                 : supervisor
-                  ? 'Full-network queue: filter by status and assigned department, export CSV, open a ticket to assign technicians or close after verification. Your home overview is the supervisor workspace.'
+                  ? 'Full-network queue: filter by status and assigned department, open a ticket to assign technicians or close after verification. Your home overview is the supervisor workspace.'
                   : isIntakeOfficerRole(role)
                     ? 'Triage new registrations, duplicate checks, first-line dispatch to technicians, and supervisor escalation when needed. Fraud investigations are handled by the compliance unit.'
                     : 'Monitor and manage the backlog: filter by status, assign from issue detail, then close when resolved.'}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {canExportCsv && (
-            <button
-              type="button"
-              disabled={exporting || !staff}
-              onClick={() => void runExport()}
-              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-indigo-600 shadow-sm hover:bg-slate-50 disabled:opacity-50"
-            >
-              <Download className="h-4 w-4" />
-              {exporting ? 'Exporting…' : 'Export CSV'}
-            </button>
-          )}
-          {canNew && (
+          {canNew && !supervisor && (
             <Link
               to="/app/issues/new"
               className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700"
