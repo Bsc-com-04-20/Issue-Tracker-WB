@@ -24,7 +24,7 @@ import type {
   ResolutionStats,
   TopFailingSubcategories,
 } from '@/lib/types';
-import { Activity, RefreshCw, TrendingUp } from 'lucide-react';
+import { Activity, TrendingUp } from 'lucide-react';
 
 export function ReportsPage() {
   const { user } = useAuth();
@@ -241,32 +241,6 @@ export function ReportsPage() {
           {slaBatchMsg ? (
             <p className="mt-2 text-sm text-slate-600">{slaBatchMsg}</p>
           ) : null}
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {canRunSlaBreachScan(role) && (
-            <button
-              type="button"
-              disabled={slaBatchBusy}
-              onClick={() => void runSlaBreachesFromReports()}
-              className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-900 shadow-sm hover:bg-amber-100 disabled:opacity-50"
-            >
-              {slaBatchBusy ? 'Running SLA job…' : 'Run SLA breach scan'}
-            </button>
-          )}
-          <button
-            type="button"
-            className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-indigo-600 shadow-sm hover:bg-slate-50"
-          >
-            Export report
-          </button>
-          <button
-            type="button"
-            onClick={() => setReloadKey((x) => x + 1)}
-            className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700"
-          >
-            <RefreshCw className="h-4 w-4" />
-            Refresh data
-          </button>
         </div>
       </div>
 
