@@ -263,19 +263,19 @@ export function buildWaterSupplyDescription(
 }
 
 export const WATER_SUPPLY_SUBCATEGORY_OPTIONS = [
-  { value: 'no_water_supply', label: '1. No Water Supply' },
-  { value: 'low_water_pressure', label: '2. Low Water Pressure' },
-  { value: 'intermittent_supply', label: '3. Intermittent Water Supply' },
-  { value: 'air_in_pipes', label: '4. Air Coming from Taps' },
-  { value: 'delayed_water_restoration', label: '5. Delayed Water Restoration' },
+  { value: 'no_water_supply', label: 'No water supply' },
+  { value: 'low_water_pressure', label: 'Low water pressure' },
+  { value: 'intermittent_supply', label: 'Intermittent water supply' },
+  { value: 'air_in_pipes', label: 'Air coming from taps' },
+  { value: 'delayed_water_restoration', label: 'Delayed water restoration' },
 ] as const;
 
 export const PUBLIC_CATEGORY_OPTIONS = [
-  { value: 'water_supply', label: '1. Water Supply Issues' },
-  { value: 'infrastructure_maintenance', label: '2. Infrastructure & Maintenance' },
-  { value: 'billing_account', label: '3. Billing & Account Issues' },
-  { value: 'metering', label: '4. Metering Issues' },
-  { value: 'water_quality', label: '5. Water Quality Issues' },
-  { value: 'digital_payment', label: '6. Digital & Payment System Issues' },
-  { value: 'illegal_connection_fraud', label: '7. Illegal Connections & Fraud' },
+  { value: 'water_supply', label: 'Water supply issues' },
+  { value: 'infrastructure_maintenance', label: 'Infrastructure & maintenance' },
+  { value: 'billing_account', label: 'Billing & account issues' },
+  { value: 'metering', label: 'Metering issues' },
+  { value: 'water_quality', label: 'Water quality issues' },
+  { value: 'digital_payment', label: 'Digital & payment systems' },
+  { value: 'illegal_connection_fraud', label: 'Illegal connections & fraud' },
 ] as const;

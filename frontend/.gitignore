@@ -1,6 +1,26 @@
+<<<<<<< Updated upstream
 node_modules/
 dist/
 .env
 .env.*
 !.env.example
 *.log
+=======
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Local env
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+>>>>>>> Stashed changes

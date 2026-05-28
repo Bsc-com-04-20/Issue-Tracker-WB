@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
-import { AlertTriangle, CircleCheck, Menu, X } from 'lucide-react';
+import { AlertTriangle, CircleCheck } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { apiFetch, parseJson } from '@/lib/api';
 import { canCreateIssue } from '@/lib/auth';
@@ -457,7 +457,6 @@ export function NewIssuePage({ mode = 'staff' }: { mode?: 'staff' | 'public' }) 
   );
   const [pending, setPending] = useState(false);
   const [botStepIndex, setBotStepIndex] = useState(0);
-  const [categoryDrawerOpen, setCategoryDrawerOpen] = useState(false);
   const [intakeRoutingHints, setIntakeRoutingHints] = useState<
     Record<string, string>
   >({});
@@ -1024,7 +1023,6 @@ export function NewIssuePage({ mode = 'staff' }: { mode?: 'staff' | 'public' }) 
     setIssueCategory(categoryValue);
     setIssueSubcategory(def?.subcategories[0] ?? '');
     setIssueAttributes({});
-    setCategoryDrawerOpen(false);
     if (botStepIndex > 0) {
       setBotStepIndex(0);
       setDescription('');
@@ -1384,14 +1382,8 @@ export function NewIssuePage({ mode = 'staff' }: { mode?: 'staff' | 'public' }) 
 
   function isStepSatisfied(step: BotStep): boolean {
     if (step.optional) return true;
-    if (step.id === 'registryOtp') {
-      return otpCode.trim().length >= 4;
-    }
     if (step.id === 'accountConfirm') {
       return accountConfirmChoice === 'correct';
-    }
-    if (step.id === 'registryPhoneSuffix') {
-      return phoneSuffixChoice === 'yes';
     }
     if (step.id === 'wsPhotoEvidence' || step.id === 'catPhotoEvidence') {
       const intent =
@@ -1566,21 +1558,6 @@ export function NewIssuePage({ mode = 'staff' }: { mode?: 'staff' | 'public' }) 
         setBotStepIndex((x) => Math.min(botSteps.length, x + 1));
         return;
       }
-      if (step.id === 'registryPhoneSuffix') {
-        if (phoneSuffixChoice === 'no') {
-          setMeterLookupError(
-            'The registered number does not match. Please verify your meter number or contact customer service.',
-          );
-          setPhoneSuffixChoice('');
-          setAccountConfirmChoice('');
-          setMeterNumber('');
-          setMeterLookup(null);
-          setBotStepIndex(0);
-          return;
-        }
-        setBotStepIndex((x) => Math.min(botSteps.length, x + 1));
-        return;
-      }
       if (step.id === 'wsNeighboursAffected') {
         const msg = neighboursClusterMessage(issueAttributes.neighboursSameIssue ?? '');
         setFlowStatusMessage(msg);
@@ -1609,79 +1586,6 @@ export function NewIssuePage({ mode = 'staff' }: { mode?: 'staff' | 'public' }) 
         }
         setIssueAttributes((prev) => ({ ...prev, maintenanceLinked: 'yes' }));
         setBotStepIndex((x) => Math.min(botSteps.length, x + 1));
-        return;
-      }
-      if (step.id === 'registryPhone') {
-        if (!reporterPhone.trim()) return;
-        setPendingBotAction(true);
-        try {
-          const res = await apiFetch('/issue/public/meter-verify/start', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              meterNumber: meterNumber.trim(),
-              phone: reporterPhone.trim(),
-            }),
-          });
-          const data = await res.json().catch(() => ({}));
-          if (!res.ok) {
-            const msg = (data as { message?: string | string[] }).message;
-            throw new Error(
-              Array.isArray(msg) ? msg.join(', ') : msg?.toString() ?? 'Verification start failed',
-            );
-          }
-          const j = data as MeterVerifyStartResponse;
-          setMeterVerifySessionId(j.verificationId);
-          setDemoOtpHint(j.demoOtp ?? null);
-          setOtpCode('');
-          setMeterLookupError(null);
-          setBotStepIndex((x) => Math.min(botSteps.length, x + 1));
-        } catch (err) {
-          setMeterLookupError(
-            err instanceof Error ? err.message : 'Could not start phone verification.',
-          );
-        } finally {
-          setPendingBotAction(false);
-        }
-        return;
-      }
-      if (step.id === 'registryOtp') {
-        if (!meterVerifySessionId.trim()) {
-          setMeterLookupError('Request a code first (previous step).');
-          return;
-        }
-        setPendingBotAction(true);
-        try {
-          const res = await apiFetch('/issue/public/meter-verify/confirm', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              verificationId: meterVerifySessionId.trim(),
-              meterNumber: meterNumber.trim(),
-              otp: otpCode.trim(),
-            }),
-          });
-          const data = await res.json().catch(() => ({}));
-          if (!res.ok) {
-            const msg = (data as { message?: string | string[] }).message;
-            throw new Error(
-              Array.isArray(msg) ? msg.join(', ') : msg?.toString() ?? 'Invalid code',
-            );
-          }
-          const j = data as { meterVerificationId?: string };
-          if (j.meterVerificationId) {
-            setMeterVerificationId(j.meterVerificationId);
-          }
-          setDemoOtpHint(null);
-          setMeterLookupError(null);
-          setBotStepIndex((x) => Math.min(botSteps.length, x + 1));
-        } catch (err) {
-          setMeterLookupError(
-            err instanceof Error ? err.message : 'Verification failed.',
-          );
-        } finally {
-          setPendingBotAction(false);
-        }
         return;
       }
     }
@@ -1864,54 +1768,91 @@ export function NewIssuePage({ mode = 'staff' }: { mode?: 'staff' | 'public' }) 
     reporterPhone.trim() &&
     addressDescription.trim() &&
     (mode === 'public' ? publicWaterReady : true) &&
-    (mode === 'public' || (latitude.trim() && longitude.trim())) &&
-    (mode !== 'public' || meterVerificationId.trim());
+    (mode === 'public' || (latitude.trim() && longitude.trim()));
 
   const canSubmit = Boolean(isConversationComplete && hasCoreValues && !pending);
 
   return (
-    <div className={mode === 'public' ? 'mx-auto max-w-4xl' : 'mx-auto max-w-7xl'}>
-      <div className="rounded-2xl bg-gradient-to-br from-indigo-50 via-white to-cyan-50 p-5 shadow-sm">
+    <div className={mode === 'public' ? 'w-full' : 'mx-auto max-w-7xl'}>
+      <div className={mode === 'public' ? '' : 'rounded-2xl bg-gradient-to-br from-indigo-50 via-white to-cyan-50 p-5 shadow-sm'}>
         <div className={mode === 'public' ? '' : 'grid gap-6 lg:grid-cols-3'}>
           <form
             onSubmit={onSubmit}
-            className={mode === 'public' ? 'space-y-5' : 'space-y-5 lg:col-span-2'}
+            className={mode === 'public' ? 'space-y-6' : 'space-y-5 lg:col-span-2'}
           >
-            <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-              <div className="border-b border-slate-100 p-4">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
-                    <button
-                      type="button"
-                      aria-expanded={categoryDrawerOpen}
-                      aria-controls="complaint-category-drawer"
-                      onClick={() => setCategoryDrawerOpen(true)}
-                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700"
-                      title="Browse all complaint types"
+            <div
+              className={
+                mode === 'public'
+                  ? 'overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-md'
+                  : 'rounded-2xl border border-slate-200 bg-white shadow-sm'
+              }
+            >
+              <div
+                className={
+                  mode === 'public'
+                    ? 'border-b border-slate-100 bg-gradient-to-r from-indigo-600 to-cyan-600 px-5 py-5 sm:px-6'
+                    : 'border-b border-slate-100 p-4'
+                }
+              >
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="flex min-w-0 items-center gap-4">
+                    <div
+                      className={
+                        mode === 'public'
+                          ? 'flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/20 text-sm font-bold text-white ring-2 ring-white/30'
+                          : 'flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-sm font-bold text-white'
+                      }
                     >
-                      <Menu className="h-5 w-5" aria-hidden />
-                    </button>
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-sm font-bold text-white">
                       WB
                     </div>
                     <div className="min-w-0">
-                      <h1 className="text-lg font-semibold text-slate-900">
-                        Utility Operations Assistant
-                      </h1>
-                      <p className="text-xs text-emerald-600">
+                      <h1
+                        className={
+                          mode === 'public'
+                            ? 'text-lg font-semibold text-white sm:text-xl'
+                            : 'text-lg font-semibold text-slate-900'
+                        }
+                      >
                         {mode === 'public'
-                          ? 'Water Board Smart Support · guided reporting'
+                          ? 'Complaint assistant'
+                          : 'Utility Operations Assistant'}
+                      </h1>
+                      <p
+                        className={
+                          mode === 'public'
+                            ? 'mt-0.5 text-sm text-indigo-100'
+                            : 'text-xs text-emerald-600'
+                        }
+                      >
+                        {mode === 'public'
+                          ? 'Answer a few questions — we will guide you step by step'
                           : 'Enterprise service desk · staff-assisted intake'}
                       </p>
                     </div>
                   </div>
-                  <span className="shrink-0 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+                  <span
+                    className={
+                      mode === 'public'
+                        ? 'inline-flex w-fit shrink-0 items-center rounded-full bg-white/20 px-3 py-1 text-xs font-semibold text-white ring-1 ring-white/30'
+                        : 'shrink-0 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600'
+                    }
+                  >
                     {completionPercent}% complete
                   </span>
                 </div>
-                <div className="mt-3 h-2 rounded-full bg-slate-100">
+                <div
+                  className={
+                    mode === 'public'
+                      ? 'mt-4 h-2 overflow-hidden rounded-full bg-white/25'
+                      : 'mt-3 h-2 rounded-full bg-slate-100'
+                  }
+                >
                   <div
-                    className="h-2 rounded-full bg-indigo-600 transition-all"
+                    className={
+                      mode === 'public'
+                        ? 'h-2 rounded-full bg-white transition-all'
+                        : 'h-2 rounded-full bg-indigo-600 transition-all'
+                    }
                     style={{ width: `${completionPercent}%` }}
                   />
                 </div>
@@ -1927,19 +1868,45 @@ export function NewIssuePage({ mode = 'staff' }: { mode?: 'staff' | 'public' }) 
                 )}
               </div>
 
-              <div className="max-h-[540px] space-y-4 overflow-y-auto p-4">
+              <div
+                className={
+                  mode === 'public'
+                    ? 'min-h-[28rem] max-h-[min(70vh,42rem)] space-y-6 overflow-y-auto bg-slate-50/50 px-5 py-6 sm:px-6'
+                    : 'max-h-[540px] space-y-4 overflow-y-auto p-4'
+                }
+              >
                 {botSteps.slice(0, Math.min(botStepIndex + 1, botSteps.length)).map((step, idx) => (
-                  <div key={step.id} className="space-y-2">
-                    <div className="flex items-start gap-2">
-                      <div className="mt-1 h-2.5 w-2.5 rounded-full bg-indigo-500" />
-                      <div className="max-w-2xl rounded-2xl rounded-tl-sm bg-slate-100 px-4 py-3 text-sm text-slate-800">
+                  <div key={step.id} className={mode === 'public' ? 'space-y-3' : 'space-y-2'}>
+                    <div className="flex items-start gap-3">
+                      <div
+                        className={
+                          mode === 'public'
+                            ? 'flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-[10px] font-bold text-white'
+                            : 'mt-1 h-2.5 w-2.5 rounded-full bg-indigo-500'
+                        }
+                      >
+                        {mode === 'public' ? 'WB' : null}
+                      </div>
+                      <div
+                        className={
+                          mode === 'public'
+                            ? 'max-w-[85%] rounded-2xl rounded-tl-md border border-slate-200/80 bg-white px-4 py-3.5 text-sm leading-relaxed text-slate-800 shadow-sm'
+                            : 'max-w-2xl rounded-2xl rounded-tl-sm bg-slate-100 px-4 py-3 text-sm text-slate-800'
+                        }
+                      >
                         {mode === 'public' ? step.prompt : formatStepPrompt(step, idx + 1)}
                       </div>
                     </div>
                     {idx < botStepIndex && (
                       <div className="space-y-2">
-                        <div className="flex justify-end">
-                          <div className="max-w-2xl rounded-2xl rounded-tr-sm bg-indigo-600 px-4 py-3 text-sm text-white">
+                        <div className="flex justify-end gap-3">
+                          <div
+                            className={
+                              mode === 'public'
+                                ? 'max-w-[85%] rounded-2xl rounded-tr-md bg-indigo-600 px-4 py-3.5 text-sm leading-relaxed text-white shadow-sm'
+                                : 'max-w-2xl rounded-2xl rounded-tr-sm bg-indigo-600 px-4 py-3 text-sm text-white'
+                            }
+                          >
                             {optionLabel(step.id, getBotValue(step.id))}
                           </div>
                         </div>
@@ -1951,9 +1918,23 @@ export function NewIssuePage({ mode = 'staff' }: { mode?: 'staff' | 'public' }) 
                     {idx < botStepIndex &&
                       step.id === 'wsNeighboursAffected' &&
                       flowStatusMessage && (
-                        <div className="flex items-start gap-2">
-                          <div className="mt-1 h-2.5 w-2.5 rounded-full bg-cyan-500" />
-                          <div className="max-w-2xl rounded-2xl rounded-tl-sm bg-cyan-50 px-4 py-3 text-sm text-cyan-950">
+                        <div className="flex items-start gap-3">
+                          <div
+                            className={
+                              mode === 'public'
+                                ? 'flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-cyan-600 text-[10px] font-bold text-white'
+                                : 'mt-1 h-2.5 w-2.5 rounded-full bg-cyan-500'
+                            }
+                          >
+                            {mode === 'public' ? 'WB' : null}
+                          </div>
+                          <div
+                            className={
+                              mode === 'public'
+                                ? 'max-w-[85%] rounded-2xl rounded-tl-md border border-cyan-200 bg-cyan-50 px-4 py-3.5 text-sm leading-relaxed text-cyan-950'
+                                : 'max-w-2xl rounded-2xl rounded-tl-sm bg-cyan-50 px-4 py-3 text-sm text-cyan-950'
+                            }
+                          >
                             {flowStatusMessage}
                           </div>
                         </div>
@@ -1962,7 +1943,13 @@ export function NewIssuePage({ mode = 'staff' }: { mode?: 'staff' | 'public' }) 
                 ))}
 
                 {isConversationComplete && (
-                  <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
+                  <div
+                    className={
+                      mode === 'public'
+                        ? 'rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm text-emerald-900'
+                        : 'rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900'
+                    }
+                  >
                     <p className="flex items-center gap-2 font-semibold">
                       <CircleCheck className="h-4 w-4" />
                       {conversationAborted
@@ -1995,15 +1982,29 @@ export function NewIssuePage({ mode = 'staff' }: { mode?: 'staff' | 'public' }) 
               </div>
 
               {!isConversationComplete && (
-              <div className="border-t border-slate-100 p-4">
+              <div
+                className={
+                  mode === 'public'
+                    ? 'border-t border-slate-200 bg-white px-5 py-5 sm:px-6'
+                    : 'border-t border-slate-100 p-4'
+                }
+              >
                 {currentBotStep && (
                   <div className="space-y-3">
-                    {(mode === 'public'
-                      ? currentBotStep.helperText
-                      : [currentBotStep.helperText, stepOperationalOverlay.helperSuffix]
+                    {((mode === 'public' &&
+                      currentBotStep.type !== 'select' &&
+                      currentBotStep.helperText) ||
+                      (mode !== 'public' &&
+                        [currentBotStep.helperText, stepOperationalOverlay.helperSuffix]
                           .filter(Boolean)
-                          .join(' ')) && (
-                      <p className="text-xs text-slate-500">
+                          .join(' '))) && (
+                      <p
+                        className={
+                          mode === 'public'
+                            ? 'text-sm text-slate-600'
+                            : 'text-xs text-slate-500'
+                        }
+                      >
                         {mode === 'public'
                           ? currentBotStep.helperText
                           : [currentBotStep.helperText, stepOperationalOverlay.helperSuffix]
@@ -2011,44 +2012,65 @@ export function NewIssuePage({ mode = 'staff' }: { mode?: 'staff' | 'public' }) 
                               .join(' ')}
                       </p>
                     )}
-                    {mode === 'public' &&
-                      currentBotStep.id === 'registryPhone' &&
-                      meterLookup?.phoneHintLast4 && (
-                        <p className="rounded-lg border border-indigo-100 bg-indigo-50/60 px-3 py-2 text-xs text-indigo-950">
-                          You confirmed the number ending in{' '}
-                          <span className="font-semibold">
-                            {meterLookup.phoneHintLast4.replace(/^…+/, '')}
-                          </span>
-                          . Enter the complete mobile number below.
-                        </p>
-                      )}
                     {currentBotStep.type === 'select' ? (
-                      <div className="space-y-2">
-                        {currentBotStep.id === 'issueCategory' && (
-                          <p className="text-xs text-slate-500">
-                            Use the menu button above for a full scrollable list, or choose a
-                            shortcut below.
-                          </p>
-                        )}
-                        <div className="flex flex-wrap gap-2">
-                          {stepOptions(currentBotStep.id).map((opt) => {
-                            const active = getBotValue(currentBotStep.id) === opt.value;
-                            return (
-                              <button
-                                key={opt.value}
-                                type="button"
-                                onClick={() => setBotValue(currentBotStep.id, opt.value)}
-                                className={`rounded-full border px-3 py-1.5 text-sm transition ${
-                                  active
-                                    ? 'border-indigo-600 bg-indigo-600 text-white'
-                                    : 'border-slate-200 bg-white text-slate-700 hover:border-indigo-200 hover:bg-indigo-50'
-                                }`}
+                      <div className="space-y-3">
+                        {(() => {
+                          const opts = stepOptions(currentBotStep.id);
+                          const useChoiceGrid =
+                            mode === 'public' &&
+                            (currentBotStep.id === 'issueCategory' ||
+                              currentBotStep.id === 'issueSubcategory' ||
+                              opts.length >= 3);
+                          return (
+                            <>
+                              {mode === 'public' && (
+                                <p className="text-sm text-slate-600">
+                                  {currentBotStep.helperText ?? 'Tap one of the options below.'}
+                                </p>
+                              )}
+                              <div
+                                className={
+                                  useChoiceGrid
+                                    ? 'grid gap-2 sm:grid-cols-2'
+                                    : 'flex flex-wrap gap-2'
+                                }
                               >
-                                {opt.label}
-                              </button>
-                            );
-                          })}
-                        </div>
+                                {opts.map((opt) => {
+                                  const active = getBotValue(currentBotStep.id) === opt.value;
+                                  const isCategoryPick =
+                                    currentBotStep.id === 'issueCategory';
+                                  return (
+                                    <button
+                                      key={opt.value}
+                                      type="button"
+                                      onClick={() => {
+                                        if (isCategoryPick) {
+                                          pickCategoryFromDrawer(opt.value);
+                                        }
+                                        setBotValue(currentBotStep.id, opt.value);
+                                      }}
+                                      className={
+                                        useChoiceGrid
+                                          ? `rounded-xl border px-4 py-3 text-left text-sm font-medium leading-snug transition ${
+                                              active
+                                                ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm'
+                                                : 'border-slate-200 bg-slate-50 text-slate-800 hover:border-indigo-300 hover:bg-indigo-50'
+                                            }`
+                                          : `rounded-full border px-3 py-1.5 text-sm transition ${
+                                              active
+                                                ? 'border-indigo-600 bg-indigo-600 text-white'
+                                                : 'border-slate-200 bg-white text-slate-700 hover:border-indigo-200 hover:bg-indigo-50'
+                                            }`
+                                      }
+                                    >
+                                      {opt.label}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </>
+                          );
+                        })()}
                         {mode === 'public' &&
                           (currentBotStep.id === 'wsPhotoEvidence' ||
                             currentBotStep.id === 'catPhotoEvidence') &&
@@ -2105,11 +2127,6 @@ export function NewIssuePage({ mode = 'staff' }: { mode?: 'staff' | 'public' }) 
                             {meterLookupLoading ? 'Validating meter…' : 'Validate meter now'}
                           </button>
                         ) : null}
-                      </div>
-                    )}
-                    {demoOtpHint && (
-                      <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-950">
-                        Prototype OTP code: <span className="font-mono">{demoOtpHint}</span>
                       </div>
                     )}
                     {meterLookupError && (
@@ -2242,11 +2259,21 @@ export function NewIssuePage({ mode = 'staff' }: { mode?: 'staff' | 'public' }) 
               </div>
             )}
 
-            <div className="flex gap-3">
+            <div
+              className={
+                mode === 'public'
+                  ? 'flex flex-col-reverse gap-3 sm:flex-row sm:items-center'
+                  : 'flex gap-3'
+              }
+            >
               <button
                 type="submit"
                 disabled={!canSubmit}
-                className="rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+                className={
+                  mode === 'public'
+                    ? 'rounded-xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 disabled:opacity-50 sm:flex-1'
+                    : 'rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50'
+                }
               >
                 {pending
                   ? 'Saving…'
@@ -2256,7 +2283,11 @@ export function NewIssuePage({ mode = 'staff' }: { mode?: 'staff' | 'public' }) 
               </button>
               <Link
                 to={mode === 'public' ? '/report' : '/app/issues'}
-                className="rounded-lg border border-slate-200 px-5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                className={
+                  mode === 'public'
+                    ? 'rounded-xl border border-slate-200 bg-white px-6 py-3 text-center text-sm font-medium text-slate-700 hover:bg-slate-50'
+                    : 'rounded-lg border border-slate-200 px-5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50'
+                }
               >
                 {mode === 'public' ? 'Back to home' : 'Cancel'}
               </Link>
@@ -2346,72 +2377,6 @@ export function NewIssuePage({ mode = 'staff' }: { mode?: 'staff' | 'public' }) 
         </div>
       )}
 
-      {categoryDrawerOpen && (
-        <div
-          className="fixed inset-0 z-50 flex bg-slate-900/40 backdrop-blur-[1px]"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="complaint-category-drawer-title"
-          onClick={() => setCategoryDrawerOpen(false)}
-        >
-          <div
-            id="complaint-category-drawer"
-            className="flex h-full w-full max-w-md flex-col bg-white shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-              <h2
-                id="complaint-category-drawer-title"
-                className="text-base font-semibold text-slate-900"
-              >
-                Complaint types
-              </h2>
-              <button
-                type="button"
-                onClick={() => setCategoryDrawerOpen(false)}
-                className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-800"
-                aria-label="Close"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <p className="border-b border-slate-100 px-4 py-2 text-xs text-slate-500">
-              Choose the category that best matches the issue. You can change this later
-              from the menu; if you already answered questions, the assistant restarts from
-              the beginning.
-            </p>
-            <nav className="flex-1 overflow-y-auto py-2" aria-label="Issue categories">
-              <ul className="divide-y divide-slate-100">
-                {CATEGORY_OPTIONS.map((cat) => {
-                  const selected = issueCategory === cat.value;
-                  return (
-                    <li key={cat.value}>
-                      <button
-                        type="button"
-                        onClick={() => pickCategoryFromDrawer(cat.value)}
-                        className={`flex w-full flex-col items-start gap-1 px-4 py-3 text-left text-sm transition hover:bg-indigo-50 ${
-                          selected ? 'bg-indigo-50 ring-1 ring-inset ring-indigo-200' : ''
-                        }`}
-                      >
-                        <span
-                          className={`font-semibold ${selected ? 'text-indigo-900' : 'text-slate-900'}`}
-                        >
-                          {cat.label}
-                        </span>
-                        <span className="text-xs text-slate-500">
-                          {cat.subcategories.length} specific types — first:{' '}
-                          {cat.subcategories[0]?.replace(/_/g, ' ') ?? '—'}
-                        </span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            </nav>
-          </div>
-          <div className="min-h-0 min-w-0 flex-1" aria-hidden />
-        </div>
-      )}
     </div>
   );
 }

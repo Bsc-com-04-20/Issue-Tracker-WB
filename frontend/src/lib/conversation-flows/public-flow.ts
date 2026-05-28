@@ -19,32 +19,7 @@ export type PublicFlowContext = {
   maintenanceRestorationTime?: string;
 };
 
-function phoneLast4Digits(hint: string | undefined): string {
-  return hint?.replace(/^…+/, '').trim() ?? '';
-}
-
 export function buildPublicConversationSteps(ctx: PublicFlowContext): ConversationStep[] {
-  const last4 = phoneLast4Digits(ctx.phoneHintLast4);
-
-  const phoneSuffixStep: ConversationStep[] = last4
-    ? [
-        {
-          id: 'registryPhoneSuffix',
-          prompt:
-            'Confirm your registered mobile number.\n\n' +
-            `The number on file for this meter ends in: ${last4}\n\n` +
-            'Is this your current mobile number?\n' +
-            '1. Yes\n' +
-            '2. No',
-          type: 'select',
-        },
-      ]
-    : [];
-
-  const registryPhonePrompt = last4
-    ? 'Enter your full mobile number (with country code, e.g. +265991000001).'
-    : 'Enter the mobile number registered to this meter account.';
-
   const identity: ConversationStep[] = [
     {
       id: 'registryMeter',
@@ -62,21 +37,11 @@ export function buildPublicConversationSteps(ctx: PublicFlowContext): Conversati
         : 'Confirm your account details.',
       type: 'select',
     },
-    ...phoneSuffixStep,
     {
-      id: 'registryPhone',
-      prompt: registryPhonePrompt,
+      id: 'reporterPhone',
+      prompt: 'What is your mobile number for status updates?',
       type: 'text',
-      helperText: last4
-        ? `Must match the number ending in ${last4} on your account.`
-        : 'This must match the number linked to your meter in the registry.',
-    },
-    {
-      id: 'registryOtp',
-      prompt: 'Enter the verification code sent to your phone.',
-      type: 'text',
-      helperText:
-        'In this demo, use the verification code shown below after you enter your phone number.',
+      helperText: 'Include country code if possible, e.g. +265991000001.',
     },
     {
       id: 'issueCategory',
@@ -95,7 +60,7 @@ export function buildPublicConversationSteps(ctx: PublicFlowContext): Conversati
       prompt:
         'Please select the water supply problem you are experiencing:',
       type: 'select',
-      helperText: WATER_SUPPLY_SUBCATEGORY_OPTIONS.map((o) => o.label).join(' · '),
+      helperText: 'Tap one of the options below.',
     },
   ];
 

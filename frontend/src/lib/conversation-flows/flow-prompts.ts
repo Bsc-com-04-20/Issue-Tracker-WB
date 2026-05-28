@@ -15,9 +15,7 @@ export function accountConfirmPrompt(lookup: PremiseMeterLookupResponse): string
     `• District: ${district}\n` +
     `• Area: ${area}\n` +
     `• Phone: ${phone}\n\n` +
-    `Please confirm these details are correct:\n` +
-    `1. Correct\n` +
-    `2. Incorrect`
+    `Please confirm these details are correct.`
   );
 }
 
