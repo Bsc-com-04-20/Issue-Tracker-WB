@@ -7,7 +7,6 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
 import { MeterLookupService } from './meter-lookup.service';
-import { SystemSettingsService } from './system-settings.service';
 import { normalizePhoneDigits } from './phone-normalize';
 
 type Session = {
@@ -30,7 +29,6 @@ export class MeterVerificationService {
   constructor(
     private readonly configService: ConfigService,
     private readonly meterLookupService: MeterLookupService,
-    private readonly settingsService: SystemSettingsService,
   ) {
     setInterval(() => this.pruneExpired(), 60_000).unref?.();
   }
@@ -44,11 +42,11 @@ export class MeterVerificationService {
     }
   }
 
-  async start(meterNumberRaw: string, phoneRaw: string): Promise<{
+  start(meterNumberRaw: string, phoneRaw: string): {
     verificationId: string;
     message: string;
     demoOtp?: string;
-  }> {
+  } {
     const meterNumber = this.meterLookupService.normalizeMeterNumber(meterNumberRaw);
     const row = this.meterLookupService.lookup(meterNumber);
     if (!row.found) {
@@ -69,10 +67,12 @@ export class MeterVerificationService {
         'The phone number you entered does not match the number linked to this meter in the registry.',
       );
     }
-
-    const demoOtp = await this.settingsService.get('meter_verification_otp', '000000');
-    const ttlMs = await this.settingsService.get('otp_ttl_ms', 900000);
-
+    const demoOtp =
+      this.configService.get<string>('METER_VERIFICATION_DEMO_OTP')?.trim() || '000000';
+    const ttlMs =
+      Number(this.configService.get('METER_VERIFICATION_TTL_MS')) > 0
+        ? Number(this.configService.get('METER_VERIFICATION_TTL_MS'))
+        : 900_000;
     const verificationId = randomUUID();
     this.sessions.set(verificationId, {
       meterNumber,
